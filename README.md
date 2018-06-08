@@ -1,5 +1,11 @@
 # On Premise Habitat Builder Depot
 
+## IMPORTANT NOTICE
+
+Please read the Migrating Package Artifacts to Minio section if you are re-installing / upgrading your existing
+On-Premise Depot. The packages are now stored in a Minio instance, and running a migration script will be required
+to properly transition over.
+
 ## Introduction
 
 This repository contains scripts to install Habitat Builder Depot services. These services (referred to as the On-Premise Habitat Builder Depot) allow privately hosting Habitat packages (and associated artifacts such as keys) on-premise. Habitat clients (such as the `hab` cli, Supervisors and Studios) can be pointed to the on-premise depot and allow for development, execution and management without depending on the public Habitat services.
@@ -107,7 +113,7 @@ sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/ssl/privat
 
 ## Setup
 
-1. Clone this repo (or unzip the archive you have been given) at the desired machine where you will stand up the Habitat Builder Depot
+1. Clone this repo (or unzip the archive you have downloaded from the Github release page) at the desired machine where you will stand up the Habitat Builder Depot
 1. `cd ${SRC_ROOT}`
 1. `cp bldr.env.sample bldr.env`
 1. Edit `bldr.env` with a text editor and replace the values appropriately
@@ -128,9 +134,13 @@ Do a `hab svc status` to check the status of all the services. They may take a f
 
 If things don't work as expected (eg, if all the services are not in the `up` state), please see the Troubleshooting section below.
 
-## Web UI
+## Minio Web UI
 
-Once the services are running successfully, the Builder UI will become available at the configured hostname or IP address.
+The On-Premise Depot now stores package artifacts in Minio (https://github.com/minio/minio). By default, the Minio instance will be available on port 9000 (or whatever port you specified in your `bldr.env`). Visit http://{YOUR_MINIO_ENDPOINT} to confirm that the Minio UI is available, and that you can log in with the credentials that were specified in your `bldr.env` file. There should already be a bucket created in which to host the artifacts.
+
+## Depot Web UI
+
+Once the services are running successfully, the Builder Depot UI will become available at the configured hostname or IP address.
 
 Navigate to `http://${APP_HOSTNAME_OR_IP}/#/sign-in` to access the Builder UI.
 
@@ -212,13 +222,23 @@ Once the services are uninstalled, you may re-install them by running `./install
 
 *IMPORTANT*: Running the uninstall script will *NOT* remove any user data, so you can freely uninstall and re-install the services.
 
+## Migrating Package Artifacts to Minio
+
+This section is for those that have already installed an On-Premise Depot, and are now re-installing/upgrading (which will pick up the latest Builder services that have migrated over to the new artifact store).
+
+1. Please make sure that you have appropriate values for Minio in your `bldr.env`.  Check the 'bldr.env.sample' for the new required values.
+2. Make sure to re-run the `install.sh` script again so that Minio is appropriately configured.
+3. Run the artifact migration script: `sudo -E ./scripts/minio-migrate.sh` and follow the prompts
+
+The migration script may take a while to move over the artifacts into Minio. During the script migration, the Depot services will continue to run as normal - ie, the on-disk artifacts will still be used to serve file content if it is not yet in the Minio store. New Habitat package uploads will only go to the Minio store however. Once the migration is complete, you may remove the files in your `hab/svc/builder-api/data/pkgs` directory.
+
 ## Support
 
 You can also post any questions or issues on the [Habitat Forum](https://forums.habitat.sh/), on our [Slack channel](https://habitat-sh.slack.com), or file issues directly at the [Github repo](https://github.com/habitat-sh/on-prem-builder/issues).
 
 ## Troubleshooting
 
-### Network access
+### Network access / proxy configuration
 
 If the initial install fails, please check that you have outgoing connectivity, and that you can successfully ping the following:
 * `raw.githubusercontent.com`

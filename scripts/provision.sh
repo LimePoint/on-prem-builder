@@ -23,6 +23,13 @@ password = 'hab'
 EOT
 }
 
+init_minio() {
+  hab pkg install -bf core/aws-cli
+  export AWS_ACCESS_KEY_ID="$MINIO_ACCESS_KEY"
+  export AWS_SECRET_ACCESS_KEY="$MINIO_SECRET_KEY"
+  aws --endpoint-url $MINIO_ENDPOINT s3api create-bucket --bucket "$MINIO_BUCKET"
+}
+
 configure() {
   while [ ! -f /hab/svc/builder-datastore/config/pwfile ]
   do
@@ -47,6 +54,13 @@ token_url = "$OAUTH_TOKEN_URL"
 redirect_url = "$OAUTH_REDIRECT_URL"
 client_id = "$OAUTH_CLIENT_ID"
 client_secret = "$OAUTH_CLIENT_SECRET"
+
+[s3]
+backend = "Minio"
+key_id = "$MINIO_ACCESS_KEY"
+secret_key = "$MINIO_SECRET_KEY"
+endpoint = "$MINIO_ENDPOINT"
+bucket_name = "$MINIO_BUCKET"
 EOT
 
   mkdir -p /hab/svc/builder-api-proxy
@@ -381,6 +395,10 @@ start_sessionsrv() {
   sudo -E hab svc load habitat/builder-sessionsrv --bind router:builder-router.default --bind datastore:builder-datastore.default --channel "${BLDR_CHANNEL}" --force
 }
 
+start_minio() {
+  sudo -E hab svc load habitat/builder-minio --channel "${BLDR_CHANNEL}" --force
+}
+
 generate_bldr_keys() {
   mapfile -t keys < <(find /hab/cache/keys -name "bldr-*.pub")
 
@@ -412,6 +430,8 @@ upload_ssl_certificate() {
 start_builder() {
   init_datastore
   start_datastore
+  init_minio
+  start_minio
   configure
   start_router
   start_api
